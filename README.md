@@ -9,6 +9,35 @@ Forest classification → Unreal-ready weightmaps.
 pip install -r requirements.txt
 ```
 
+## Quick start: run the whole pipeline
+
+`run_pipeline.py` chains every stage in order
+(download → NDVI → classify → weightmaps). Because the classifier needs
+hand-labeled crop polygons, it runs in two passes around a manual labeling
+step:
+
+```bash
+# Pass 1 — download, build the NDVI stack, and seed non-crop classes from OSM,
+# then stop so you can label wheat/barley/corn in QGIS.
+# (AOI defaults to ExampleArea.gpkg; override with --aoi <file> or --bbox W S E N)
+python agriscape/run_pipeline.py \
+    --window 2024-04-01/2024-04-30 \
+    --window 2024-07-01/2024-07-31 \
+    --window 2024-09-01/2024-09-30 \
+    --bootstrap-osm --max-per-class 500
+
+# ...open ground_truth.gpkg in QGIS, draw wheat/barley/corn fields...
+
+# Pass 2 — classify and export weightmaps.
+python agriscape/run_pipeline.py --start-from classify
+```
+
+`--start-from {download,ndvi,classify,weightmaps}` and `--stop-after` let you
+resume or run any single stage. If you already have a labeled
+`ground_truth.gpkg`, drop `--bootstrap-osm` and it runs straight through.
+
+The individual stages can also be run one at a time, as described below.
+
 ## 1. Get Sentinel-2 L2A data
 
 **Option A — scripted (recommended):** pull the least-cloudy scene per
