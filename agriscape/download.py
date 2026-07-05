@@ -39,7 +39,10 @@ from pystac_client import Client
 
 STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
 COLLECTION = "sentinel-2-l2a"
-BANDS = ["B04", "B08", "SCL"]
+# B02 blue, B03 green, B04 red, B08 NIR (all 10m); B11/B12 SWIR (20m, resampled
+# to 10m by odc-stac); SCL scene-classification mask. Red+NIR build the NDVI;
+# the rest are extra spectral features for build_features.py.
+BANDS = ["B02", "B03", "B04", "B08", "B11", "B12", "SCL"]
 
 # AOI vector used automatically when no --bbox/--aoi is supplied.
 DEFAULT_AOI_FILE = "ExampleArea.gpkg"

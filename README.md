@@ -58,23 +58,43 @@ growth cycle from the Copernicus Data Space Ecosystem
 
 ```
 scenes/
-    2024-04-15/B04.jp2  B08.jp2  SCL.jp2
-    2024-06-20/B04.jp2  B08.jp2  SCL.jp2
-    2024-09-10/B04.jp2  B08.jp2  SCL.jp2
+    2024-04-15/B02.jp2 B03.jp2 B04.jp2 B08.jp2 B11.jp2 B12.jp2 SCL.jp2
+    2024-06-20/...
+    2024-09-10/...
 ```
 
-(Both `.jp2` and `.tif` band files are accepted.)
+`download.py` fetches blue/green/red/NIR/SWIR + SCL. Only B04/B08/SCL are
+strictly required (NDVI); the extra bands just enable richer features in
+step 2. Both `.jp2` and `.tif` band files are accepted.
 
-## 2. Build the NDVI stack
+## 2. Build the feature stack
+
+The Random Forest classifies each pixel from the bands in this stack, so
+richer features mean a smarter model than a bare NDVI calculator. Build the
+enriched stack:
 
 ```bash
-python agriscape/ndvi_stack.py scenes/ output/ndvi_stack.tif
+python agriscape/build_features.py scenes/ output/feature_stack.tif
 ```
 
-Scenes on a different CRS/grid than the first date are reprojected onto it
-automatically. Cloud gaps are filled with the per-pixel temporal median; add
-`--smooth savgol` (with 4+ dates) to also smooth the phenological curves with
-a Savitzky-Golay filter.
+It produces one multi-band GeoTIFF combining three feature groups:
+
+- **Spectral** — raw reflectance per date for every band present (blue, green,
+  red, NIR, SWIR1, SWIR2) plus the NDVI.
+- **Spatial (texture)** — local NDVI standard deviation in a window
+  (`--window-size`, default 5×5): homogeneous fields read low, edges/mixed
+  pixels high.
+- **Temporal** — per-pixel NDVI summary over the season: mean, min, max,
+  amplitude, and linear trend slope.
+
+Missing bands are skipped gracefully, and each group can be turned off
+(`--no-spectral`, `--no-spatial`, `--no-temporal`). Then point step 3 at
+`output/feature_stack.tif`.
+
+For a bare NDVI-only stack instead (original behaviour), use
+`python agriscape/ndvi_stack.py scenes/ output/ndvi_stack.tif` — scenes on a
+different CRS/grid are reprojected automatically, cloud gaps filled with the
+per-pixel temporal median, and `--smooth savgol` (4+ dates) smooths the curves.
 
 ## 3. Collect ground truth & classify
 
@@ -105,10 +125,11 @@ result in QGIS, sanity-check the auto polygons against a satellite basemap
 ### Classify
 
 ```bash
-python agriscape/classify.py output/ndvi_stack.tif ground_truth.gpkg \
+python agriscape/classify.py output/feature_stack.tif ground_truth.gpkg \
     output/classified.tif --model-out output/rf_model.joblib
 ```
 
+(Use `output/ndvi_stack.tif` here instead if you built the NDVI-only stack.)
 Ground truth in a different CRS than the stack is reprojected automatically.
 This prints a validation report (precision/recall per class) so you can
 judge whether you need more/better training polygons before trusting the

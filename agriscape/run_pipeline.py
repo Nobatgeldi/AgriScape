@@ -36,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import download          # noqa: E402
 import ndvi_stack        # noqa: E402
+import build_features    # noqa: E402
 import classify          # noqa: E402
 import export_weightmaps  # noqa: E402
 import fetch_osm_labels  # noqa: E402
@@ -79,12 +80,19 @@ def run(cfg) -> None:
     else:
         print(f"Skipping download (start-from={cfg.start_from})")
 
-    # --- Stage 1-2: NDVI stack ---------------------------------------------
+    # --- Stage 1-2: feature stack ------------------------------------------
     if active("ndvi"):
-        banner("STAGE 1-2/4  Build multi-temporal NDVI stack")
-        ndvi_stack.build_stack(str(scenes_dir), str(stack_path), smooth=cfg.smooth)
+        if cfg.features == "full":
+            banner("STAGE 1-2/4  Build enriched feature stack "
+                   "(spectral + spatial + temporal)")
+            build_features.build_feature_stack(
+                str(scenes_dir), str(stack_path), window_size=cfg.window_size,
+            )
+        else:
+            banner("STAGE 1-2/4  Build multi-temporal NDVI stack")
+            ndvi_stack.build_stack(str(scenes_dir), str(stack_path), smooth=cfg.smooth)
     else:
-        print(f"Skipping NDVI stack (start-from={cfg.start_from})")
+        print(f"Skipping feature stack (start-from={cfg.start_from})")
 
     # --- Ground-truth gate --------------------------------------------------
     if active("classify"):
@@ -161,7 +169,13 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", default="output")
     parser.add_argument("--ground-truth", default="ground_truth.gpkg")
     # stage params
-    parser.add_argument("--smooth", choices=["median", "savgol"], default="median")
+    parser.add_argument("--features", choices=["full", "ndvi"], default="full",
+                        help="'full' = enriched spectral+spatial+temporal feature "
+                             "stack; 'ndvi' = plain NDVI-only stack")
+    parser.add_argument("--window-size", type=int, default=5,
+                        help="Texture window (px) for the enriched feature stack")
+    parser.add_argument("--smooth", choices=["median", "savgol"], default="median",
+                        help="NDVI-only gap handling (used when --features ndvi)")
     parser.add_argument("--class-field", default="class_name")
     parser.add_argument("--tile-size", type=int, default=1024)
     parser.add_argument("--bit-depth", type=int, choices=[8, 16], default=8)
