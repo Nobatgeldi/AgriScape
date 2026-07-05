@@ -140,7 +140,7 @@ OSM does reliably tag vineyards, orchards, and non-agricultural land, so you
 can auto-generate those classes and only hand-draw the cereals:
 
 ```bash
-python agriscape/fetch_osm_labels.py output/ndvi_stack.tif ground_truth.gpkg \
+python agriscape/fetch_osm_labels.py output/feature_stac.tif ground_truth.gpkg \
     --max-per-class 500
 ```
 
