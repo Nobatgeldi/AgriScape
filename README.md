@@ -34,7 +34,8 @@ python agriscape/run_pipeline.py --start-from classify
 
 `--start-from {download,ndvi,classify,weightmaps}` and `--stop-after` let you
 resume or run any single stage. If you already have a labeled
-`ground_truth.gpkg`, drop `--bootstrap-osm` and it runs straight through.
+`ground_truth.gpkg`, drop `--bootstrap-osm` and it runs straight through. Add
+`--deep-features` (GPU; see step 2) to also append learned ResNet-18 bands.
 
 The individual stages can also be run one at a time, as described below.
 
@@ -95,6 +96,34 @@ For a bare NDVI-only stack instead (original behaviour), use
 `python agriscape/ndvi_stack.py scenes/ output/ndvi_stack.tif` — scenes on a
 different CRS/grid are reprojected automatically, cloud gaps filled with the
 per-pixel temporal median, and `--smooth savgol` (4+ dates) smooths the curves.
+
+### Optional: deep features (GPU)
+
+You can append *learned* context bands from a frozen, Sentinel-2-pretrained
+ResNet-18 (via [TorchGeo](https://torchgeo.readthedocs.io)) on top of the
+hand-engineered ones. This is extra GPU dependencies, kept separate:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+pip install -r requirements-torch.txt
+
+python agriscape/deep_features.py scenes/ output/feature_stack.tif \
+    --components 16 --device cuda
+```
+
+It runs the frozen backbone densely over an RGB composite, takes an
+intermediate conv feature map (spatial/land-cover context), PCA-reduces it, and
+appends the components as `deep_pca_*` bands to the stack in place (the RF and
+weightmap steps then use them automatically). By default it uses the RGB weights
+(`--weights sentinel2_rgb_moco`), which need only the blue/green/red bands
+`download.py` already fetches; pass `--checkpoint` to load an EuroSAT-fine-tuned
+model instead.
+
+**What this does and doesn't do:** the bands add texture and land-cover context
+(crop vs. non-crop, structured vs. ragged fields), which can help the RF. They
+do **not** by themselves separate spectrally similar cereals like wheat vs.
+barley — EuroSAT-style scene features are coarse. Treat it as an accuracy
+experiment, not a replacement for good ground truth.
 
 ## 3. Collect ground truth & classify
 

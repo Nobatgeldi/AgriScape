@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import download          # noqa: E402
 import ndvi_stack        # noqa: E402
 import build_features    # noqa: E402
+import deep_features     # noqa: E402
 import classify          # noqa: E402
 import export_weightmaps  # noqa: E402
 import fetch_osm_labels  # noqa: E402
@@ -91,6 +92,15 @@ def run(cfg) -> None:
         else:
             banner("STAGE 1-2/4  Build multi-temporal NDVI stack")
             ndvi_stack.build_stack(str(scenes_dir), str(stack_path), smooth=cfg.smooth)
+
+        if cfg.deep_features:
+            banner("STAGE 1-2/4  Append deep ResNet-18 features (TorchGeo)")
+            deep_features.add_deep_features(
+                str(scenes_dir), str(stack_path),
+                weights=cfg.deep_weights, checkpoint=cfg.deep_checkpoint,
+                n_components=cfg.deep_components, tile_size=cfg.deep_tile_size,
+                device=cfg.deep_device,
+            )
     else:
         print(f"Skipping feature stack (start-from={cfg.start_from})")
 
@@ -174,6 +184,18 @@ if __name__ == "__main__":
                              "stack; 'ndvi' = plain NDVI-only stack")
     parser.add_argument("--window-size", type=int, default=5,
                         help="Texture window (px) for the enriched feature stack")
+    # deep features (optional, needs requirements-torch.txt + GPU)
+    parser.add_argument("--deep-features", action="store_true",
+                        help="Append frozen ResNet-18 (TorchGeo) deep bands to "
+                             "the feature stack (needs requirements-torch.txt)")
+    parser.add_argument("--deep-weights", default="sentinel2_rgb_moco",
+                        help="TorchGeo ResNet18_Weights name for deep features")
+    parser.add_argument("--deep-checkpoint", default=None,
+                        help="Optional EuroSAT-fine-tuned checkpoint for deep features")
+    parser.add_argument("--deep-components", type=int, default=16,
+                        help="Number of PCA deep-feature bands (default 16)")
+    parser.add_argument("--deep-tile-size", type=int, default=512)
+    parser.add_argument("--deep-device", default="cuda", help="cuda or cpu")
     parser.add_argument("--smooth", choices=["median", "savgol"], default="median",
                         help="NDVI-only gap handling (used when --features ndvi)")
     parser.add_argument("--class-field", default="class_name")

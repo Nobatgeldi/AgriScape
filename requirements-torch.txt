@@ -1,0 +1,17 @@
+# Optional GPU dependencies for the deep-features stage (agriscape/deep_features.py).
+# Kept separate from requirements.txt because the torch stack is large and
+# hardware-specific. NOT needed for the Random Forest pipeline.
+#
+# Install torch + torchvision from the CUDA wheel index matching your CUDA
+# runtime first, then install the rest. Pick the index for your CUDA/Python:
+# older Python may use cu121; Python 3.13 needs a newer index such as cu128.
+#
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r requirements-torch.txt
+#
+# For CPU-only inference, drop the --index-url line (plain `pip install torch
+# torchvision`); deep_features.py also accepts --deep-device cpu.
+
+torch>=2.2.0
+torchvision>=0.17.0
+torchgeo>=0.6.0
